@@ -4,6 +4,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 
 const {requireAuth} = require('../middlewares/authMiddleware');
+const { JwtSecret } = require('../config');
 
 
 const handleErrors = (err) => {
@@ -30,7 +31,7 @@ const handleErrors = (err) => {
 // create token after successfully login or signup
 const maxAge = 3 * 24 * 60 * 60; // 3 days in seconds
 const createToken = (id) => {
-    return jwt.sign({id}, process.env.JWT_SECRET,{
+    return jwt.sign({id}, JwtSecret, {
         expiresIn: maxAge
     });
 }
