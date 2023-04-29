@@ -1,12 +1,17 @@
 const http = require('http');
 const express = require('express');
 const {Server: SocketServer} = require('socket.io');
+const chalk = require('chalk');
+
 const mongoose = require('mongoose');
+const {connect} = require('./mongoose-connection');
+
 const cors = require('cors');
 const coockieParse = require('cookie-parser');
+
 const registerSocketHandler = require('./socket_handler/handler');
 // require('dotenv').config();
-const {allowedOringins, port, dbConnectionStr} = require('./config');
+const {allowedOringins, port} = require('./config');
 
 const {requireAuth} = require('./middlewares/authMiddleware');
 
@@ -60,18 +65,17 @@ registerSocketHandler(io);
 
 
 // connect to db then start listening
-mongoose.set('strictQuery', true);
-mongoose.connect(dbConnectionStr, {useNewUrlParser: true}).then(
+connect().then(
     () => {
-        console.log('connected to database');
+        console.log(chalk.bgBlue('Connected to database'));
         server.listen(port, () => {
-            console.log(`Server listening on port ${port}`);
+            console.log(chalk.bgBlue(`Server listening on port ${port}`));
         });
     },
-    err => {console.log('initial connection error: ', err)}
+    err => {console.log(chalk.bgRed('Initial connection error: '), err)}
 );
-const db = mongoose.connection;
-db.on('error', (error) => console.log("Error", error));
+mongoose.connection.on('error', (error) => console.log(chalk.bgRed("Mongoose connection Error"), error));
+mongoose.connection.on('disconnected', () => console.log(chalk.bgRed("Mongoose disconnected ")));
 
 
 
