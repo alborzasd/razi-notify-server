@@ -40,7 +40,7 @@ const createDepartment = async(department) => {
 } 
 
 const createRootAdmin = async(departmentId) => {
-    rootAdmin.departmentId = departmentId;
+    rootAdmin.department = departmentId;
     return await UserModel.create(rootAdmin);
 }
 
@@ -65,6 +65,7 @@ module.exports = {
     }
     catch(err) {
       console.log(chalk.bgRed('Error'), err);
+      throw err;
     }
   },
 
@@ -91,6 +92,7 @@ module.exports = {
     }
     catch(err){
       console.log(chalk.bgRed('Error'), err);
+      throw err;
     }
   }
 };

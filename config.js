@@ -10,16 +10,18 @@ module.exports = {
 
     // default deparment to associate with root admin
     defaultDepartment: {
-        title: 'دانشکده کامپیوتر'
+        title: 'کامپیوتر'
     },
     rootAdmin: {
         username: process.env.ROOT_ADMIN_USERNAME,
         password: process.env.ROOT_ADMIN_PASSWORD,
         // some defaults that can be edited later by the user
-        first_name: 'admin',
-        last_name: 'admin',
+        first_name: 'عبدالله',
+        last_name: 'چاله چاله',
         system_role: 'root_admin', // except this, can not be edited
-        organization_role: 'professor',
-        departmentId: null // get the _id of new created department from database
+        lecturer_position: 'assistant professor',
+        // student_position: 'bachelor',
+        // employee_position: 'manager',
+        department: null // get the _id of new created department from database
     }
 }

@@ -7,11 +7,11 @@ const mongoose = require('mongoose');
 const {connect} = require('./mongoose-connection');
 
 const cors = require('cors');
-const coockieParse = require('cookie-parser');
+const coockieParser = require('cookie-parser');
 
 const registerSocketHandler = require('./socket_handler/handler');
 // require('dotenv').config();
-const {allowedOringins, port} = require('./config');
+const {allowedOrigins, port} = require('./config');
 
 const {requireAuth} = require('./middlewares/authMiddleware');
 
@@ -22,7 +22,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketServer(server, {
     cors: {
-      origin: allowedOringins,
+      origin: allowedOrigins,
       methods: ["HEAD", "GET", "POST", "PUT", "PATCH", "DELTE"]
     }
 });
@@ -37,9 +37,9 @@ app.set('socket_instance', io);
 // TODO: use api to get messages files (image, pdf, ...) with proper http response headers (instead of using public folder)(the url route to get the file is not same as the address of where the file is stored in server) 
 // app.use(express.static('public')); // TODO: use static for react build files?
 app.use(express.json()); // use request json body
-app.use(coockieParse()); // TODO: enable 'secure' and 'httpOnly' flag for jwt token coockie
+app.use(coockieParser()); // TODO: enable 'secure' and 'httpOnly' flag for jwt token coockie
 app.use(cors({
-    origin: allowedOringins,
+    origin: allowedOrigins,
     credentials: true
 }));
 // app.use(cors({
