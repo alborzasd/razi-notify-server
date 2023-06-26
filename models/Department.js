@@ -5,6 +5,9 @@ const departmentSchema = new mongoose.Schema({
     title: {
         type: String,
         required: [true, 'عنوان نمیتواند خالی باشد.']
+    },
+    type: {
+        type: String // "default"
     }
 }, {collection: collectionName, timestamps: true});
 

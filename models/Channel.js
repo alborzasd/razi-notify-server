@@ -1,12 +1,14 @@
 const mongoose = require('mongoose');
 const collectionName = 'Channels';
 
+const {collectionName: userCollectionName} = require('./User');
+
 const channelSchema = new mongoose.Schema({
     identifier: {
         type: String,
         required: true,
         unique: true
-        //TODO: regex validation (only alphanumeric, hyphen, underscore, english, lowercase)
+        //TODO: regex validation (only alphanumeric, hyphen, underscore, english, case insensitive compare)
     },
     title: {
         type: String,
@@ -14,6 +16,11 @@ const channelSchema = new mongoose.Schema({
     },
     description: {
         type: String
+    },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: userCollectionName
     },
     profile_image_url: {
         type: String,

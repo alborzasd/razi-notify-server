@@ -21,21 +21,29 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// how to use transactions in mongoose
+// https://www.ultimateakash.com/blog-details/IiwzQGAKYAo=/How-to-implement-Transactions-in-Mongoose-&-Node.Js-(Express)
+
+///////////////////////////////////////////////////////////////////////////////
+
 const { model: DepartmentModel } = require('../../models/Department');
 const { model: UserModel } = require('../../models/User');
 const models = [
-  require('../../models/Department').model,
-  require('../../models/User').model,
+  require('../../models/Message').model,
+  require('../../models/ChannelUserMembership').model,
   require('../../models/Channel').model,
-  require('../../models/Message').model
+  require('../../models/User').model,
+  require('../../models/Department').model,
 ];
 
+const mongoose = require('mongoose');
 const {connect, disconnect} = require('../../mongoose-connection');
 const chalk = require('chalk');
 
 const {rootAdmin, defaultDepartment} = require('../../config');
 
 const createDepartment = async(department) => {
+    department.type = "default";
     return await DepartmentModel.create(department);
 } 
 
@@ -46,9 +54,15 @@ const createRootAdmin = async(departmentId) => {
 
 module.exports = {
   async up(db, client) {
+    let session;
     try {
       await connect();
       console.log(chalk.green('Connected to db to migrate-up...'));
+      // session = await mongoose.startSession();
+      // console.log('Session started');
+      // session.startTransaction();
+      // console.log('Transaction started');
+
 
       await Promise.all(models.map(async model => {
         await model.init();
@@ -60,39 +74,60 @@ module.exports = {
       const newRootAmin = await createRootAdmin(newDepartment._id);
       console.log(chalk.green('New Root Admin created.'));
 
-      await disconnect();
-      console.log(chalk.bgBlue('Connection closed.'));
+
+      // await session.commitTransaction();
+      // console.log('Transaction comitted');
     }
     catch(err) {
+      // await session.abortTransaction();
+      // console.log('Transaction aborted');
       console.log(chalk.bgRed('Error'), err);
       throw err;
+    }
+    finally {
+      // await session.endSession();
+      // console.log('Session closed.');
+      await disconnect();
+      console.log(chalk.bgBlue('Connection closed.'));
     }
   },
 
-  async down(db, client) {   
+  async down(db, client) {
+    let session;
     try {
       await connect();
       console.log(chalk.green('Connected to db to migrate-down...'));
+      // session = await mongoose.startSession();
+      // console.log('Session started');
+      // session.startTransaction();
+      // console.log('Transaction started');
 
-      // DONT!!!
-      // await Promise.all(models.map(async model => {
-      //   await model.collection.drop();
+
+      // for(let model of models) {
+      //   const result = await model.collection.drop();
+      //   console.log('result', result);
       //   console.log(chalk.yellow(model.collection.collectionName, 'indexes and collection removed'));
-      // }));
+      // }
+      await DepartmentModel.deleteMany();
+      console.log(chalk.yellow('Departments data deleted'));
+      await UserModel.deleteMany();
+      console.log(chalk.yellow('Users data deleted'));
 
-      // must drop collections sequentially (order doesn't matter as far as I know)
-      // if we do that with promise.all, then some collections are remained in databse
-      for(let model of models) {
-        await model.collection.drop();
-        console.log(chalk.yellow(model.collection.collectionName, 'indexes and collection removed'));
-      }
 
-      await disconnect();
-      console.log(chalk.bgBlue('Connection closed.'));
+      // await session.commitTransaction();
+      // console.log('Transaction comitted');
     }
     catch(err){
+      // await session.abortTransaction();
+      // console.log('Transaction aborted');
       console.log(chalk.bgRed('Error'), err);
       throw err;
+    }
+    finally {
+      // await session.endSession();
+      // console.log('Session closed.');
+      await disconnect();
+      console.log(chalk.bgBlue('Connection closed.'));
     }
   }
 };

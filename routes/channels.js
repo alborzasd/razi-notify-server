@@ -7,12 +7,10 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         const channels = await ChannelModel.find();
-        res.send(channels);
-        // setTimeout(() => res.send(channels), 5000); // TODO: remove timeout for production server
-        // setTimeout(() => res.json([]), 5000); // empty response handling in front-end
+        res.send({data: channels});
     }
     catch (err) {
-        res.status(500).json({message: err.message});
+        res.status(500).json({error: {message: err.message}});
     }
 });
 

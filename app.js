@@ -51,6 +51,7 @@ app.use(cors({
 app.use('/auth', require('./routes/auth'));
 app.use('/users', requireAuth, require('./routes/users'));
 app.use('/channels', requireAuth, require('./routes/channels'));
+app.use('/sync', requireAuth, require('./routes/sync'));
 
 app.get('/', (req, res) => {    
     res.json({message: 'Razi Notify Api'});

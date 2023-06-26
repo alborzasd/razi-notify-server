@@ -52,14 +52,24 @@ router.post('/login', async (req, res) => {
     try { 
         const user = await UserModel.login(username, password);
         const token = createToken(user._id);
-        // TODO: check sameSite='strcit' with different subdomains (admin.razi-notify.ir and api.razi-notify.ir)
-        res.cookie('jwt', token, {httpOnly: true, maxAge: maxAge * 1000, sameSite: 'strict'}); 
-        res.status(200).json({
-            data: {
-                user 
-            }
-        });
-        // TODO: open socket connection here ?
+        if(req.header('x-device') === 'phone') {
+            res.json({
+                data: {
+                    user,
+                    accessToken: token
+                }
+            });
+        }
+        else {
+            // TODO: check sameSite='strcit' with different subdomains (admin.razi-notify.ir and api.razi-notify.ir) (subdomain has effect?)
+            res.cookie('jwt', token, {httpOnly: true, maxAge: maxAge * 1000, sameSite: 'strict'}); 
+            res.status(200).json({
+                data: {
+                    user 
+                }
+            });            
+        }
+        // TODO: open socket connection here ?  
     }
     catch(err) {
         const errors = handleErrors(err);
@@ -67,25 +77,9 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// get user info from jwt cookie to check if user is logged in
+// request is sent by web client to check if it has access token cookie
 router.get('/info', requireAuth, async (req, res) => {
-    try {
-        // const user = await UserModel.findByIdNoPassword(res.auth.user_id);
-        const user = await UserModel.findById(res.auth.user_id, {password: 0});
-        if(user) {
-            res.status(200).json({
-                data: {
-                    user
-                }
-            });
-        }
-        else {
-            throw new Error('User does not exist');
-        }
-    }
-    catch(err) {
-        res.status(500).json({error: {message: err.message}});
-    }
+    return res.json({data: {user: req.auth.user}});
 });
 
 router.get('/logout', requireAuth, (req, res) => {
