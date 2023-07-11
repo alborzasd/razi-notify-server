@@ -48,7 +48,7 @@ const createDepartment = async(department) => {
 } 
 
 const createRootAdmin = async(departmentId) => {
-    rootAdmin.department = departmentId;
+    rootAdmin.department_id = departmentId;
     return await UserModel.create(rootAdmin);
 }
 

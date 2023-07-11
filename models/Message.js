@@ -8,10 +8,13 @@ const {collectionName: userCollectionName} = require('./User');
 
 const messageSchema = new mongoose.Schema({
 
+    title: {
+        type: String,
+        required: true,
+    },
     body: {
         type: String,
         required: true
-        //TODO: ckeditor(bold italic size emoji link image fileToDownload)
     },
     channel_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -19,7 +22,7 @@ const messageSchema = new mongoose.Schema({
         ref: channelCollectionName
     },
     // if it's empty it means the message is sent by the channel owner
-    sent_by: {
+    sent_by_user_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: userCollectionName
     }

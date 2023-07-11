@@ -9,27 +9,32 @@ const { JwtSecret } = require('../config');
 
 const handleErrors = (err) => {
 
+    let status = 401;
     const errors = {}; 
 
     if(err.message === 'empty username'){
         errors.username = 'نام کاربری نمیتواند خالی باشد';        
     }
-    if(err.message === 'empty password'){
+    else if(err.message === 'empty password'){
         errors.password = 'رمز عبور نمیتواند خالی باشد';  
     }
-    if(err.message === 'username does not exist'){
+    else if(err.message === 'username does not exist'){
         errors.username = "نام کاربری در سامانه ثبت نشده است.";
     }
-    if(err.message === 'incorrect password'){
+    else if(err.message === 'incorrect password'){
         errors.password = "رمز عبور صحیح نیست.";
     }
+    else {
+        errors.message = err.message;
+        status = 500;
+    }
 
-    return errors;
+    return {status, errors};
 
 }
 
 // create token after successfully login or signup
-const maxAge = 3 * 24 * 60 * 60; // 3 days in seconds
+const maxAge = 30 * 24 * 60 * 60; // 30 days in seconds
 const createToken = (id) => {
     return jwt.sign({id}, JwtSecret, {
         expiresIn: maxAge
@@ -72,8 +77,8 @@ router.post('/login', async (req, res) => {
         // TODO: open socket connection here ?  
     }
     catch(err) {
-        const errors = handleErrors(err);
-        res.status(401).json({error: errors});
+        const {status, errors} = handleErrors(err);
+        res.status(status).json({error: errors});
     }
 });
 

@@ -3,6 +3,9 @@ const collectionName = 'ChannelUserMembership';
 
 const {collectionName: userCollectionName} = require('./User');
 const {collectionName: channelCollectionName} = require('./Channel');
+const constants = require('./Constans');
+
+// TODO: add validation or index for unique combination of user_id, channel_id
 
 const schema = new mongoose.Schema({
     user_id: {
@@ -19,10 +22,10 @@ const schema = new mongoose.Schema({
         type: String,
         required: true,
         enum: {
-            values: ['member', 'admin'],
+            values: constants.memberRoleValues,
             message: 'مقادیر معتبر شامل این مقدار نمی باشد.'
         },
-        default: 'member'
+        default: constants.memberRoleValues[0] // 'member'
     }
 }, {collection: collectionName, timestamps: true});
 
