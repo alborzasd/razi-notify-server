@@ -4,6 +4,7 @@ const collectionName = 'Departments';
 const departmentSchema = new mongoose.Schema({
     title: {
         type: String,
+        unique: true,
         required: [true, 'عنوان نمیتواند خالی باشد.']
     },
     type: {

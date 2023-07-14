@@ -2,6 +2,8 @@ const {
   collectionName: departmentCollectionName,
 } = require("../models/Department");
 
+const ObjectId = require('mongoose').Types.ObjectId;
+
 // utility function to handle validation or server error
 function handleErrors(err, resourceName) {
   let status = 400; // assume that it's a validation error
@@ -30,6 +32,8 @@ function handleErrors(err, resourceName) {
 // utility function that handles user aggregation
 // and is used by users and channelMembers route handlers
 function generateUserAggregationStages($preMatch, pageNum, pageSize) {
+  // to disable pagination
+  // pageSize must be set to 0
   return [
     { $match: $preMatch },
     // get deparment info of each user
@@ -68,14 +72,27 @@ function generateUserAggregationStages($preMatch, pageNum, pageSize) {
     },
     {
       $facet: {
-        entities: [{ $skip: (pageNum - 1) * pageSize }, { $limit: pageSize }],
+        entities:
+          pageSize > 0
+            ? [{ $skip: (pageNum - 1) * pageSize }, { $limit: pageSize }]
+            : // skip 0, it's a no op stage
+              [{ $skip: 0 }],
         count: [{ $count: "totalCount" }],
       },
     },
   ];
 }
 
+function isValidObjectId(str) {
+  if (ObjectId.isValid(str)) {
+    if (String(new ObjectId(str)) === str) return true;
+    return false;
+  }
+  return false;
+}
+
 module.exports = {
   handleErrors,
   generateUserAggregationStages,
+  isValidObjectId,
 };

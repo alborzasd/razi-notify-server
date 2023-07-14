@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const {
   model: ChannelUserMembershipModel,
 } = require("../models/ChannelUserMembership");
@@ -165,6 +166,107 @@ router.get("/", async (req, res) => {
     });
   } catch (err) {
     const { status, errorData } = handleErrors(err, "users");
+    return res.status(status).json({ error: errorData });
+  }
+});
+
+// add many users (members) to channel
+router.post("/", requireChannelOwnership, async (req, res) => {
+  const channelDoc = req?.channel; // req.channel comes from get channel middleware
+  // userPartials includes _id, username, fullname
+  // the new joined userPartials will be sent to client
+  const userPartials = req?.body?.users || [];
+  const userIds = userPartials.map((user) => user?._id); // string array
+
+  try {
+    // find userIds that are already member of channel
+    // and are inside the userIds that is sent within req.body
+    const existingMemberships = await ChannelUserMembershipModel.find({
+      channel_id: channelDoc?._id,
+      user_id: { $in: userIds },
+    });
+
+    // map existing memberships to existing userIds
+    const existingUserIds = existingMemberships.map((membership) =>
+      membership?.user_id?.toString()
+    ); // string array
+
+    // exclude userIds that are already member of the channel
+    // we call them new joined ids
+    const newJoinedUserIds = userIds.filter(
+      (id) => !existingUserIds.includes(id)
+    ); // string array
+
+    // map to membership objects to pass to the membership model
+    const newMemberShips = newJoinedUserIds.map((userId) => ({
+      channel_id: channelDoc?._id, // objectId
+      user_id: mongoose.Types.ObjectId(userId), // objectId
+    }));
+
+    // add to ChannelUserMembership collection
+    await ChannelUserMembershipModel.create(newMemberShips);
+
+    // send to client, which users are joined recently
+    const newJoinedUserPartials = userPartials.filter((user) =>
+      newJoinedUserIds.includes(user?._id)
+    );
+
+    return res.json({
+      data: {
+        movedUsers: newJoinedUserPartials,
+        // client uses the channel _id to invalidate specific table queries
+        channel: channelDoc,
+      },
+    });
+  } catch (err) {
+    const { status, errorData } = handleErrors(err);
+    return res.status(status).json({ error: errorData });
+  }
+});
+
+// remove many users (members) from channel
+router.delete("/", requireChannelOwnership, async (req, res) => {
+  const channelDoc = req?.channel; // req.channel comes from get channel middleware
+  // userPartials includes _id, username, fullname
+  // the new removed userPartials will be sent to client
+  const userPartials = req?.body?.users || [];
+  const userIds = userPartials.map((user) => user?._id); // string array
+
+  try {
+    // find userIds that are already member of channel
+    // and are inside the userIds that is sent within req.body
+    // if we use deleteMany here, only delete count will be returned
+    // but we need to know which userIds deleted
+    // so first we will find the ids and then remove them
+    const existingMemberships = await ChannelUserMembershipModel.find({
+      channel_id: channelDoc?._id,
+      user_id: { $in: userIds },
+    });
+
+    // map existing memberships to existing userIds
+    const existingUserIds = existingMemberships.map((membership) =>
+      membership?.user_id?.toString()
+    ); // string array
+
+    await ChannelUserMembershipModel.deleteMany({
+      channel_id: channelDoc?._id,
+      user_id: { $in: existingUserIds }, // or $in userIds
+    });
+
+    // send to client, which users are removed recently
+    const newRemovedUserPartials = userPartials.filter((user) =>
+      existingUserIds.includes(user?._id)
+    );
+
+    return res.json({
+      data: {
+        movedUsers: newRemovedUserPartials,
+        // client uses the channel _id to invalidate specific table queries
+        channel: channelDoc,
+      },
+    });
+  } catch (err) {
+    const { status, errorData } = handleErrors(err);
     return res.status(status).json({ error: errorData });
   }
 });

@@ -29,6 +29,9 @@ const schema = new mongoose.Schema({
     }
 }, {collection: collectionName, timestamps: true});
 
+// define unique index for combination of user_id and channel_id
+schema.index({user_id: 1, channel_id: 1}, {unique: true});
+
 module.exports = {
     model: mongoose.model(collectionName, schema),
     collectionName

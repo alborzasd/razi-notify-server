@@ -54,12 +54,55 @@ router.get("/", async (req, res) => {
     const entities = result[0]?.entities || [];
     const totalCount = result[0]?.count[0]?.totalCount || 0;
 
-    res.send({
+    res.json({
       data: {
         entities,
         meta: {
           pageNum,
           pageSize,
+          totalCount,
+        },
+        // client will use these dictionaries to translate fields of entities
+        systemRoleEnumPersian: Constants.systemRoleEnumPersian,
+        studentPositionEnumPersian: Constants.studentPositionEnumPersian,
+        lecturerPositionEnumPersian: Constants.lecturerPositionEnumPersian,
+      },
+    });
+  } catch (err) {
+    const { status, errorData } = handleErrors(err, "users");
+    return res.status(status).json({ error: errorData });
+  }
+});
+
+// find users with exact usernames
+// it's a post request by used to filter users
+// it receivces large amount of usernames
+// so it need to be sent as request body (not url route and query params)
+router.post("/findByUsernames", async (req, res) => {
+  try {
+    // if not converted to string
+    // the usernames treated as number so mongo aggregation will not
+    // match to the string username in documents
+    // but mongoose.find will cast to string automatically
+    const usernames = req?.body?.usernames
+      ? req?.body?.usernames?.map((username) => username.toString())
+      : [];
+    const $preMatch = { username: { $in: usernames } };
+
+    // const result = await UserModel.find({username: {$in: usernames}});
+    const result = await UserModel.aggregate(
+      generateUserAggregationStages($preMatch, 1, 0)
+    );
+
+    const entities = result[0]?.entities || [];
+    const totalCount = result[0]?.count[0]?.totalCount || 0;
+
+    res.json({
+      data: {
+        entities,
+        meta: {
+          // pageNum,
+          // pageSize,
           totalCount,
         },
         // client will use these dictionaries to translate fields of entities
