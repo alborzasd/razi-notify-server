@@ -114,8 +114,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true,
       sparse: true,
+      validate: {
+        validator: function (value) {
+          return /^09\d{9}$/.test(value);
+        },
+        message: (props) =>
+          constants.phoneNumberErrorMessageCallback(props.value),
+      },
+
       __onCreateBind: true,
-      // TODO: regex validation for phone number
     },
     email: {
       // password reset
@@ -153,15 +160,16 @@ userSchema.virtual("department", {
 });
 
 userSchema.pre("save", async function (next) {
+  // console.log('pre save');
   const salt = await bcrypt.genSalt();
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
-function prePopulate() {
-  this.populate("department", "title");
-}
-userSchema.pre("findOne", prePopulate); // also works for 'findById' used in auth router
+// function prePopulate() {
+//   this.populate("department", "title");
+// }
+// userSchema.pre("findOne", prePopulate); // also works for 'findById' used in auth router
 
 // static method to login user
 userSchema.statics.login = async function (username, password) {
@@ -172,7 +180,7 @@ userSchema.statics.login = async function (username, password) {
   if (!password) {
     throw Error("empty password");
   }
-  const user = await this.findOne({ username });
+  const user = await this.findOne({ username }).populate("department", "title");
   // console.log(user);
   if (user) {
     const auth = await bcrypt.compare(password, user.password);

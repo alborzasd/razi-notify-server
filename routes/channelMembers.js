@@ -106,6 +106,10 @@ router.get("/", async (req, res) => {
           department_id: "$user.department_id",
           profile_image_url: "$user.profile_image_url",
 
+          description: "$user.description",
+          phone_number: "$user.phone_number",
+          email: "$user.email",
+
           //convert createAt to joined_at
           joined_at: "$createdAt",
           // keep these fields
@@ -178,7 +182,11 @@ router.post("/", requireChannelOwnership, async (req, res) => {
   const userPartials = req?.body?.users || [];
   const userIds = userPartials.map((user) => user?._id); // string array
 
+  let session;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+
     // find userIds that are already member of channel
     // and are inside the userIds that is sent within req.body
     const existingMemberships = await ChannelUserMembershipModel.find({
@@ -194,7 +202,10 @@ router.post("/", requireChannelOwnership, async (req, res) => {
     // exclude userIds that are already member of the channel
     // we call them new joined ids
     const newJoinedUserIds = userIds.filter(
-      (id) => !existingUserIds.includes(id)
+      (id) =>
+        !existingUserIds.includes(id) &&
+        // prevent adding the channel owner to the list of his channel members
+        channelDoc?.owner_id.toString() !== id
     ); // string array
 
     // map to membership objects to pass to the membership model
@@ -204,12 +215,14 @@ router.post("/", requireChannelOwnership, async (req, res) => {
     }));
 
     // add to ChannelUserMembership collection
-    await ChannelUserMembershipModel.create(newMemberShips);
+    await ChannelUserMembershipModel.create(newMemberShips, { session });
 
     // send to client, which users are joined recently
     const newJoinedUserPartials = userPartials.filter((user) =>
       newJoinedUserIds.includes(user?._id)
     );
+
+    await session.commitTransaction();
 
     return res.json({
       data: {
@@ -219,8 +232,12 @@ router.post("/", requireChannelOwnership, async (req, res) => {
       },
     });
   } catch (err) {
+    await session.abortTransaction();
+
     const { status, errorData } = handleErrors(err);
     return res.status(status).json({ error: errorData });
+  } finally {
+    await session.endSession();
   }
 });
 
@@ -232,7 +249,11 @@ router.delete("/", requireChannelOwnership, async (req, res) => {
   const userPartials = req?.body?.users || [];
   const userIds = userPartials.map((user) => user?._id); // string array
 
+  let session;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+
     // find userIds that are already member of channel
     // and are inside the userIds that is sent within req.body
     // if we use deleteMany here, only delete count will be returned
@@ -248,15 +269,20 @@ router.delete("/", requireChannelOwnership, async (req, res) => {
       membership?.user_id?.toString()
     ); // string array
 
-    await ChannelUserMembershipModel.deleteMany({
-      channel_id: channelDoc?._id,
-      user_id: { $in: existingUserIds }, // or $in userIds
-    });
+    await ChannelUserMembershipModel.deleteMany(
+      {
+        channel_id: channelDoc?._id,
+        user_id: { $in: existingUserIds }, // or $in userIds
+      },
+      { session }
+    );
 
     // send to client, which users are removed recently
     const newRemovedUserPartials = userPartials.filter((user) =>
       existingUserIds.includes(user?._id)
     );
+
+    await session.commitTransaction();
 
     return res.json({
       data: {
@@ -266,8 +292,12 @@ router.delete("/", requireChannelOwnership, async (req, res) => {
       },
     });
   } catch (err) {
+    await session.abortTransaction();
+
     const { status, errorData } = handleErrors(err);
     return res.status(status).json({ error: errorData });
+  } finally {
+    await session.endSession();
   }
 });
 

@@ -23,5 +23,11 @@ module.exports = {
         // student_position: 'bachelor',
         // employee_position: 'manager',
         department: null // get the _id of new created department from database
+    },
+
+    smsApiConfig: {
+        apiUrl: process.env.SMS_API_URL,
+        apiKey: process.env.SMS_API_KEY,
+        sendFromNumber: process.env.SMS_SEND_FROM_NUMBER,
     }
 }

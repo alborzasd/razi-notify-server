@@ -1,18 +1,36 @@
 const express = require("express");
+
 const { model: ChannelModel } = require("../models/Channel");
+
 const { collectionName: userCollectionName } = require("../models/User");
+
 const { model: MessageModel } = require("../models/Message");
+
+const {
+  model: ChannelUserMembershipModel,
+} = require("../models/ChannelUserMembership");
+
 const mongoose = require("mongoose");
+
 const router = express.Router();
+
 const {
   getChannel,
   requireChannelOwnership,
 } = require("../middlewares/channelMiddlewares");
-const { handleErrors } = require("./utilities");
+
+const { handleErrors, cascadeDeleteChannel, getMyOwnChannelsController } = require("./utilities");
 
 // get all channels, can set filter and pagination
 // returns items(entities) with pagination result(meta: totalCount)
 router.get("/", async (req, res) => {
+
+  // user wants a little list of his channel
+  // go to execute the controller handler that is /channels/?tmeplate=myOwn
+  if(req?.query?.template === "myOwn") {
+    return await getMyOwnChannelsController(req, res);
+  }
+
   const userId = req.auth.user._id;
 
   // get query params and set default value if empty
@@ -203,12 +221,25 @@ router.delete(
   getChannel,
   requireChannelOwnership,
   async (req, res) => {
+    let session;
     try {
-      await req.channel.remove();
+      session = await mongoose.startSession();
+      session.startTransaction();
+
+      const channelDoc = req?.channel;
+
+      await cascadeDeleteChannel(channelDoc, session);
+
+      await session.commitTransaction();
+
       res.json({ data: { message: "Channel deleted successfully" } });
     } catch (err) {
+      await session.abortTransaction();
+
       const { status, errorData } = handleErrors(err, "channels");
       return res.status(status).json({ error: errorData });
+    } finally {
+      await session.endSession();
     }
   }
 );

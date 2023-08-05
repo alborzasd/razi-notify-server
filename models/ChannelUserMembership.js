@@ -1,38 +1,52 @@
-const mongoose = require('mongoose');
-const collectionName = 'ChannelUserMembership';
+const mongoose = require("mongoose");
+const collectionName = "ChannelUserMembership";
 
-const {collectionName: userCollectionName} = require('./User');
-const {collectionName: channelCollectionName} = require('./Channel');
-const constants = require('./Constans');
+const { collectionName: userCollectionName } = require("./User");
+const { collectionName: channelCollectionName } = require("./Channel");
+const constants = require("./Constans");
 
 // TODO: add validation or index for unique combination of user_id, channel_id
 
-const schema = new mongoose.Schema({
+const schema = new mongoose.Schema(
+  {
     user_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: userCollectionName
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: userCollectionName,
     },
     channel_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        require: true,
-        ref: channelCollectionName
+      type: mongoose.Schema.Types.ObjectId,
+      require: true,
+      ref: channelCollectionName,
     },
     member_role: {
-        type: String,
-        required: true,
-        enum: {
-            values: constants.memberRoleValues,
-            message: 'مقادیر معتبر شامل این مقدار نمی باشد.'
-        },
-        default: constants.memberRoleValues[0] // 'member'
-    }
-}, {collection: collectionName, timestamps: true});
+      type: String,
+      required: true,
+      enum: {
+        values: constants.memberRoleValues,
+        message: "مقادیر معتبر شامل این مقدار نمی باشد.",
+      },
+      default: constants.memberRoleValues[0], // 'member'
+    },
+  },
+  {
+    collection: collectionName,
+    timestamps: true,
+    /*toObject: {virtuals: true},*/
+  }
+);
 
 // define unique index for combination of user_id and channel_id
-schema.index({user_id: 1, channel_id: 1}, {unique: true});
+schema.index({ user_id: 1, channel_id: 1 }, { unique: true });
+
+schema.virtual("user", {
+  ref: userCollectionName,
+  localField: "user_id",
+  foreignField: "_id",
+  justOne: true,
+});
 
 module.exports = {
-    model: mongoose.model(collectionName, schema),
-    collectionName
-}
+  model: mongoose.model(collectionName, schema),
+  collectionName,
+};

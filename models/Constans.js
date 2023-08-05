@@ -107,6 +107,10 @@ const identifierNamingErrorMessage = `نحوه نام گذاری شناسه کا
 - حداقل 4 کاراکتر
 - شروع نام فقط با حروف`;
 
+const phoneNumberErrorMessageCallback = (invalidPhone) =>
+  "شماره همراه حتما باید در قالب 09123456789 باشد." +
+  `شماره وارد شده: ${invalidPhone}`;
+
 /////////////////////////////////////////////////////////////
 
 module.exports = {
@@ -128,4 +132,5 @@ module.exports = {
   memberRolesEnumPersian,
 
   identifierNamingErrorMessage,
+  phoneNumberErrorMessageCallback,
 };
