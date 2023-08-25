@@ -85,7 +85,7 @@ router.get("/:messageId", getMessage, async (req, res) => {
   try {
     const messageDoc = req?.messageDoc;
     // populate channel name
-    await messageDoc.populate("channel", "title owner_id");
+    await messageDoc.populate("channel", "title owner_id identifier");
     // populate sender name
     if (messageDoc?.sent_by_user_id) {
       // populate if sender user is different than channel owner
@@ -104,7 +104,7 @@ router.get("/:messageId", getMessage, async (req, res) => {
       );
     }
 
-    return res.json({data: messageDoc});
+    return res.json({ data: messageDoc });
   } catch (err) {
     const { status, errorData } = handleErrors(err);
     return res.status(status).json({ error: errorData });
@@ -137,7 +137,7 @@ router.post("/", requireChannelOwnership, async (req, res) => {
         "\n\n" +
         req?.body?.title +
         "\n" +
-        req?.body?.body;
+        req?.body?.bodyRaw;
       await sendSmsToPhoneNumberList(phoneNumberList, messageText);
     }
 
@@ -149,5 +149,63 @@ router.post("/", requireChannelOwnership, async (req, res) => {
     return res.status(status).json({ error: errorData });
   }
 });
+
+router.patch(
+  "/:messageId",
+  getMessage,
+  requireChannelOwnership,
+  async (req, res) => {
+    try {
+      const messageDoc = req?.messageDoc;
+      const channelDoc = req?.channel;
+      const allowedFields = MessageModel.getOnBindAllowedFields("update");
+      for (let fieldName in req?.body) {
+        if (allowedFields.includes(fieldName)) {
+          messageDoc[fieldName] = req?.body?.[fieldName];
+        }
+      }
+
+      // if smsEnabled send sms and if fails
+      // throw error and do not edit message in db
+      if (req?.body?.smsEnabled) {
+        const phoneNumberList = await getMemberPhoneNumbers(channelDoc._id);
+        const messageText =
+          "https://razi-notify.ir" +
+          "\n\n" +
+          `کانال ${channelDoc?.title}` +
+          "\n\n" +
+          req?.body?.title +
+          " [ویرایش]" +
+          "\n" +
+          req?.body?.bodyRaw;
+        await sendSmsToPhoneNumberList(phoneNumberList, messageText);
+      }
+
+      await messageDoc.save();
+      res.json({ data: { message: "Message edited successfully" } });
+    } catch (err) {
+      const { status, errorData } = handleErrors(err);
+      return res.status(status).json({ error: errorData });
+    }
+  }
+);
+
+router.delete(
+  "/:messageId",
+  getMessage,
+  requireChannelOwnership,
+  async (req, res) => {
+    try {
+      const messageDoc = req?.messageDoc;
+      await MessageModel.deleteOne({_id: messageDoc?._id});
+      // deprecated ?
+      // await messageDoc.remove();
+      res.json({data: {message: 'Message removed successfully'}});
+    } catch(err) {
+      const {status, errorData} = handleErrors(err);
+      return res.status(status).json({error: errorData});
+    }
+  }
+);
 
 module.exports = router;

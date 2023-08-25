@@ -5,7 +5,12 @@ const { smsApiConfig } = require("../config");
 smsApiInstance = axios.create({
   baseURL: smsApiConfig.apiUrl,
   headers: {
-    "X-API-KEY": smsApiConfig.apiKey,
+    // sms.ir
+    // "X-API-KEY": smsApiConfig.apiKey,
+
+    // ghasedak sms
+    apikey: smsApiConfig.apiKey,
+    'content-type': 'application/x-www-form-urlencoded'
   },
 });
 
@@ -17,21 +22,28 @@ smsApiInstance = axios.create({
 async function sendSmsToPhoneNumberList(phoneNumberList, messageText) {
   try {
     if (phoneNumberList?.length === 0) {
-      throw new Error(
-        "هیچکدام از اعضای کانال، شماره همراه ثبت شده ندارند."
-      );
+      throw new Error("هیچکدام از اعضای کانال، شماره همراه ثبت شده ندارند.");
     }
     const result = await smsApiInstance.post("/", {
+      // sms.ir
+      // lineNumber: smsApiConfig.sendFromNumber,
+      // messageText: messageText,
+      // mobiles: phoneNumberList,
+
+      // ghasedak sms
+      message: messageText,
       lineNumber: smsApiConfig.sendFromNumber,
-      messageText: messageText,
-      mobiles: phoneNumberList,
+      receptor: phoneNumberList.join(","),
     });
     return result;
   } catch (err) {
     const error = new Error();
     error.name = "SmsManagerError"; // used in utilities/handleError
     if (err?.response) {
-      error.message = `خطا در ارسال پیامک. جزییات: ${err?.response?.data?.message}`;
+      // sms.ir
+      // error.message = `خطا در ارسال پیامک. جزییات: ${err?.response?.data?.message}`;
+      // ghasedak sms
+      error.message = `خطا در ارسال پیامک. جزییات: ${err?.response?.data?.result?.message}`;
       error.networkResponseStatus = err?.response?.status;
     } else if (err?.request) {
       error.message = "خطا در ارسال پیامک. جزییات: خطای اتصال شبکه";

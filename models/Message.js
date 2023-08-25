@@ -32,6 +32,16 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: userCollectionName,
     },
+
+    // message body contains json output of the editor
+    // this field stores a substring of the raw output
+    // from that json
+    bodyRawPreview: {
+      type: String,
+
+      __onCreateBindAllowed: true,
+      __onUpdateBindAllowed: true,
+    }
   },
   {
     collection: collectionName,
