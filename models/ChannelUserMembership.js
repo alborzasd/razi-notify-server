@@ -5,8 +5,6 @@ const { collectionName: userCollectionName } = require("./User");
 const { collectionName: channelCollectionName } = require("./Channel");
 const constants = require("./Constans");
 
-// TODO: add validation or index for unique combination of user_id, channel_id
-
 const schema = new mongoose.Schema(
   {
     user_id: {
@@ -28,6 +26,20 @@ const schema = new mongoose.Schema(
       },
       default: constants.memberRoleValues[0], // 'member'
     },
+
+    // derived fields (start with 'der_' prefix)
+
+    // when a new member added to a channel
+    // this field has no value, after that
+    // when a channel title, identifier, description is updated
+    // this field is also updated (to the updatedAt value of that channel)
+    // the sync route handler will read this field
+    // to find which joined channels are updated after a given timestamp
+    // so the handler does not need to lookup the whole channels every time
+    der_channelUpdatedAt: {
+      type: Date,
+      // required: true,
+    }
   },
   {
     collection: collectionName,

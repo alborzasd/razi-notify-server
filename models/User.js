@@ -159,11 +159,20 @@ userSchema.virtual("department", {
   justOne: true,
 });
 
+// TODO: check if first name is updated
+// the hashed password will be hashed again?
 userSchema.pre("save", async function (next) {
-  // console.log('pre save');
+  // if doc is created with 'new Model' syntax
+  // then isNew method returns true
+  // but isModified('password') returns false
+  // we need only hash the password if it's new or password is modified
+  if (!this.isModified("password") && !this.$isNew) {
+    return next(); // No need to hash the password if it's not modified
+  }
+
   const salt = await bcrypt.genSalt();
   this.password = await bcrypt.hash(this.password, salt);
-  next();
+  return next();
 });
 
 // function prePopulate() {

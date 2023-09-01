@@ -150,6 +150,8 @@ router.post(
       );
 
       await UserModel.create(newUsers, { session });
+      // does not run pre save middleware for each user doc
+      // await UserModel.insertMany(newUsers, { session });
 
       await session.commitTransaction();
 
@@ -284,7 +286,7 @@ router.patch(
             requestUser?.department_id.toString() !==
             userDoc?.department_id.toString()
           ) {
-            console.log("department id different");
+            // console.log("department id different");
             userDoc.department_id = requestUser?.department_id;
           }
 

@@ -78,7 +78,7 @@ channelSchema.statics.getOnCreateBindAllowedFields = function () {
     }
   }
   return result;
-}
+};
 
 channelSchema.statics.getOnUpdateBindAllowedFields = function () {
   const result = [];

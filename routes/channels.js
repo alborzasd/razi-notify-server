@@ -19,15 +19,18 @@ const {
   requireChannelOwnership,
 } = require("../middlewares/channelMiddlewares");
 
-const { handleErrors, cascadeDeleteChannel, getMyOwnChannelsController } = require("./utilities");
+const {
+  handleErrors,
+  cascadeDeleteChannel,
+  getMyOwnChannelsController,
+} = require("./utilities");
 
 // get all channels, can set filter and pagination
 // returns items(entities) with pagination result(meta: totalCount)
 router.get("/", async (req, res) => {
-
   // user wants a little list of his channel
   // go to execute the controller handler that is /channels/?tmeplate=myOwn
-  if(req?.query?.template === "myOwn") {
+  if (req?.query?.template === "myOwn") {
     return await getMyOwnChannelsController(req, res);
   }
 
@@ -179,7 +182,11 @@ router.patch(
   getChannel,
   requireChannelOwnership,
   async (req, res) => {
+    let session;
     try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
       const channelDoc = req.channel; // available through getChannel middleware
       const allowedFields = ChannelModel.getOnUpdateBindAllowedFields();
       for (let fieldName in req?.body) {
@@ -187,11 +194,26 @@ router.patch(
           channelDoc[fieldName] = req?.body?.[fieldName];
         }
       }
-      await channelDoc.save();
+      await channelDoc.save({session});
+
+      // notify all members that channel is updated
+      // is timestamp of the memberships updated? yes
+      const result = await ChannelUserMembershipModel.updateMany(
+        { channel_id: channelDoc?._id },
+        { $set: { der_channelUpdatedAt: channelDoc?.updatedAt } },
+        { session }
+      );
+
+      await session.commitTransaction();
+
       res.json({ data: { message: "Channel edited successfully" } });
     } catch (err) {
+      await session.abortTransaction();
+
       const { status, errorData } = handleErrors(err, "channels");
       return res.status(status).json({ error: errorData });
+    } finally {
+      await session.endSession();
     }
   }
 );

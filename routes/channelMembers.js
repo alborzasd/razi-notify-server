@@ -215,7 +215,11 @@ router.post("/", requireChannelOwnership, async (req, res) => {
     }));
 
     // add to ChannelUserMembership collection
-    await ChannelUserMembershipModel.create(newMemberShips, { session });
+    // insertMany, runs validation for reach, but sends all data in one command
+    // but does not run pre save middleware for each user doc
+    // it does not need pre save middleware for now so we can use insertMany
+    // await ChannelUserMembershipModel.create(newMemberShips, { session });
+    await ChannelUserMembershipModel.insertMany(newMemberShips, { session });
 
     // send to client, which users are joined recently
     const newJoinedUserPartials = userPartials.filter((user) =>

@@ -36,7 +36,7 @@ function handleErrors(err, resourceName) {
       resourceName === "channels"
         ? "شناسه وارد شده متعلق به کانال دیگری است."
         : resourceName === "users"
-        ? "نام کاربری وارد شده قبلا در سامانه ثبت شده است"
+        ? "نام کاربری وارد شده با یکی دیگر از ردیف ورودی یا ثبت شده در سامانه یکسان است."
         : "شناسه تکراری";
   } else if (err?.name === "SmsManagerError") {
     status = err?.networkResponseStatus;
