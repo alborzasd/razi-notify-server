@@ -33,7 +33,7 @@ router.get("/", async (req, res) => {
   let existingChannelIdsToComapre = [];
   let isAnyMembershipDeleted = false;
 
-  let messagesAdded = [];
+  // let messagesAdded = [];
 
   // command client to replace new data with saved data
   let shouldResetCurrentData = false;
@@ -41,8 +41,8 @@ router.get("/", async (req, res) => {
     // get channels
     channelsAdded = await findAllJoinedChannes(userDoc?._id);
     // get last messages for each channel
-    const channelIds = channelsAdded.map((channel) => channel?._id);
-    messagesAdded = await findLastMessagesForChannelIds(channelIds);
+    // const channelIds = channelsAdded.map((channel) => channel?._id);
+    // messagesAdded = await findLastMessagesForChannelIds(channelIds);
 
     shouldResetCurrentData = true;
   } else {
@@ -59,6 +59,13 @@ router.get("/", async (req, res) => {
         channelsEdited.push(channel);
       }
     }
+
+    const channelsWithNewOrModifiedMessages =
+      await findMembershipsWithNewOrModifiedMessages(
+        userDoc?._id,
+        requestLastSync
+      );
+    channelsEdited = channelsEdited.concat(channelsWithNewOrModifiedMessages);
 
     // to detect if any membership is deleted or not
     // we get current count of memberships from client
@@ -95,6 +102,7 @@ router.get("/", async (req, res) => {
     // );
     // console.log("isAnyDeleted", isAnyMembershipDeleted);
     // console.log("existing ids", existingChannelIdsToComapre);
+    // console.log("channels with new message", channelsWithNewOrModifiedMessages);
   }
 
   // TODO: remove log
@@ -111,13 +119,21 @@ router.get("/", async (req, res) => {
         isAnyMembershipDeleted,
       },
       messages: {
-        added: messagesAdded,
+        // added: messagesAdded,
+        added: [],
         edited: [],
         removed: [],
       },
     },
   });
 });
+
+// sync messages of specific channelId
+// get query params as 
+// after: messageId => return {n} messages after messageId, and messageId itself
+// before: messageId => return {n} messages before messageId, but not messageId itself
+// the {n} is configured by server
+router.get("/:channelId", async(req, res) => {})
 
 // channel queries
 
@@ -160,17 +176,44 @@ async function getCurrentMembershipCount(user_id) {
   return await ChannelUserMembershipModel.countDocuments({ user_id });
 }
 
-// message queries
-
-async function findLastMessagesForChannelIds(channelIds) {
-  const result = await MessageModel.aggregate([
-    ...generateStagesForFindLastMessages(channelIds),
+/**
+ * returns membership rows that messageCollectionUpdatedAt field
+ * has new date value
+ *
+ * the result will be added to channelsEdited array in response
+ * so channelsEdited array can have new modified channels
+ * and some changed/unchanged channels that messages of them has changed recently
+ *
+ * so it may have duplicate rows of channel_ids
+ * for example a channel title is changed and also a new message is added
+ *
+ * at the end we convert the channel_id of membership rows to _id
+ * so it will be like a channel document row
+ */
+async function findMembershipsWithNewOrModifiedMessages(user_id, timestamp) {
+  const result = await ChannelUserMembershipModel.aggregate([
+    ...generateStagesForMembershipsWithNewOrModifiedMessages(
+      user_id,
+      timestamp
+    ),
   ]);
 
   return result;
 }
 
+// message queries
+
+// async function findLastMessagesForChannelIds(channelIds) {
+//   const result = await MessageModel.aggregate([
+//     ...generateStagesForFindLastMessages(channelIds),
+//   ]);
+
+//   return result;
+// }
+
 // stage gneration helpers
+// we separate queries and stages
+// so we can use 1 stage at multiple aggregation queries
 
 /** lookup and extract info of channels */
 function generateStageForLookupChannels() {
@@ -201,7 +244,10 @@ function generateStageForLookupChannels() {
         description: "$channel.description",
         createdAt: "$channel.createdAt",
         updatedAt: "$channel.updatedAt",
+        // membership fields that we want to keep
         membershipCreatedAt: "$createdAt",
+        der_lastMessage: "$der_lastMessage",
+        der_numUnreadMessages: "$der_numUnreadMessages",
       },
     },
   ];
@@ -243,27 +289,52 @@ function generateStageForPrematchChannels(user_id, timestamp) {
 }
 
 /**
- * returns last message of each channelId
+ * the function name is 3km
  */
-function generateStagesForFindLastMessages(channelIds) {
+function generateStagesForMembershipsWithNewOrModifiedMessages(
+  user_id,
+  timestamp
+) {
   return [
-    { $match: { channel_id: { $in: channelIds } } },
     {
-      $sort: {
-        channel_id: 1,
-        createdAt: -1,
+      $match: {
+        user_id,
+        der_messageCollectionUpdatedAt: { $gt: new Date(timestamp) },
       },
     },
     {
-      $group: {
+      $project: {
         _id: "$channel_id",
-        lastMessage: { $first: "$$ROOT" },
+        der_lastMessage: 1,
+        der_lastMessageRead: 1,
+        der_numUnreadMessages: 1,
       },
-    },
-    {
-      $replaceRoot: { newRoot: "$lastMessage" },
     },
   ];
 }
+
+/**
+ * returns last message of each channelId
+ */
+// function generateStagesForFindLastMessages(channelIds) {
+//   return [
+//     { $match: { channel_id: { $in: channelIds } } },
+//     {
+//       $sort: {
+//         channel_id: 1,
+//         createdAt: -1,
+//       },
+//     },
+//     {
+//       $group: {
+//         _id: "$channel_id",
+//         lastMessage: { $first: "$$ROOT" },
+//       },
+//     },
+//     {
+//       $replaceRoot: { newRoot: "$lastMessage" },
+//     },
+//   ];
+// }
 
 module.exports = router;

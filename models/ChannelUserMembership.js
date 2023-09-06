@@ -39,6 +39,20 @@ const schema = new mongoose.Schema(
     der_channelUpdatedAt: {
       type: Date,
       // required: true,
+    },
+    // stores the current last message for channel_id
+    der_lastMessage: {},
+    // stores the last message that user has read
+    der_lastMessageRead: {},
+    // number of unread messages (count from lastMessageRead to lastMessage)
+    der_numUnreadMessages: {
+      type: Number
+    },
+    // if any message added, edited, deleted in the channel_id
+    // the timestamp of the last operation will store here
+    // with this field, server can detect send updated last message to client or not
+    der_messageCollectionUpdatedAt: {
+      type: Date
     }
   },
   {

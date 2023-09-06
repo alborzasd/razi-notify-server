@@ -4,6 +4,8 @@ const {
 
 const { model: UserModel } = require("../models/User");
 
+const { profileImageFileSizeInMB } = require("../config");
+
 const {
   model: MessageModel,
   collectionName: messagesCollectionName,
@@ -37,10 +39,26 @@ function handleErrors(err, resourceName) {
         ? "شناسه وارد شده متعلق به کانال دیگری است."
         : resourceName === "users"
         ? "نام کاربری وارد شده با یکی دیگر از ردیف ورودی یا ثبت شده در سامانه یکسان است."
+        : resourceName === "departments"
+        ? "عنوان دانشکده تکراری است."
         : "شناسه تکراری";
   } else if (err?.name === "SmsManagerError") {
     status = err?.networkResponseStatus;
     errorData.message = err?.message;
+  } else if (err?.code === "LIMIT_FILE_SIZE") {
+    status = 413;
+    errorData.message =
+      "Uploaded file is more than" +
+      " " +
+      profileImageFileSizeInMB +
+      " " +
+      "Mb";
+    errorData.messagePersian =
+      "فایل آپلود شده بیشتر از " +
+      " " +
+      profileImageFileSizeInMB +
+      " " +
+      "مگابایت است.";
   } else {
     status = 500;
     errorData.message = err?.message;
@@ -134,98 +152,6 @@ async function cascadeDeleteManyUsers(rootAdminUsername, usernames, session) {
         as: "channels",
       },
     },
-    /////////////////////////////////////////////////////////////////
-    // {
-    //   $facet: {
-    //     user_list: [
-    //       {
-    //         $project: {
-    //           user_id: "$_id",
-    //           username: "$username",
-    //           fullname: { $concat: ["$first_name", " ", "$last_name"] },
-    //         },
-    //       },
-    //     ],
-
-    //     other: [
-    //       { $unwind: { path: "$channels", preserveNullAndEmptyArrays: true } },
-
-    //       {
-    //         $project: {
-    //           channel_id: "$channels._id",
-    //           channel_title: "$channels.title",
-    //         },
-    //       },
-
-    //       {
-    //         $facet: {
-    //           channel_list: [
-    //             {
-    //               $project: {
-    //                 channel_id: 1,
-    //                 channel_title: 1,
-    //               },
-    //             },
-    //           ],
-
-    //           message_list: [
-    //             {
-    //               $lookup: {
-    //                 from: messagesCollectionName,
-    //                 localField: "channel_id",
-    //                 foreignField: "channel_id",
-    //                 as: "messages",
-    //               },
-    //             },
-    //             {
-    //               $unwind: {
-    //                 path: "$messages",
-    //                 preserveNullAndEmptyArrays: true,
-    //               },
-    //             },
-    //             {
-    //               $project: {
-    //                 // fullname: 1,
-    //                 // channel_title: 1,
-    //                 // messages: 1,
-    //                 message_id: "$messages._id",
-    //                 message_title: "$messages.title",
-    //                 message_body: "$messages.body",
-    //               },
-    //             },
-    //           ],
-
-    //           membership_list: [
-    //             {
-    //               $lookup: {
-    //                 from: channelUserMembershipCollectionName,
-    //                 localField: "channel_id",
-    //                 foreignField: "channel_id",
-    //                 as: "memberships",
-    //               },
-    //             },
-    //             {
-    //               $unwind: {
-    //                 path: "$memberships",
-    //                 preserveNullAndEmptyArrays: true,
-    //               },
-    //             },
-    //             {
-    //               $project: {
-    //                 // fullname: 1,
-    //                 // channel_title: 1,
-    //                 // messages: 1,
-    //                 membership_id: "$memberships._id",
-    //                 membership_title: "$memberships.title",
-    //                 membership_body: "$memberships.body",
-    //               },
-    //             },
-    //           ],
-    //         },
-    //       },
-    //     ],
-    //   },
-    // },
     /////////////////////////////////////////
     { $unwind: { path: "$channels", preserveNullAndEmptyArrays: true } },
 

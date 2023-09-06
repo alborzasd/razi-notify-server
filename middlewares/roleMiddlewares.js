@@ -12,7 +12,7 @@ const requireRole = (roleList) => {
       return res.status(403).json({
         error: {
           message: 'Performing this request is not allowed with your system role',
-          meesagePersian: 'انجام این درخواست با نوع کابری شما مجاز نیست',
+          meesagePersian: 'انجام این درخواست با سطح کابری شما در سیستم مجاز نیست',
         }
       });
     }

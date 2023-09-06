@@ -197,7 +197,8 @@ router.patch(
       await channelDoc.save({session});
 
       // notify all members that channel is updated
-      // is timestamp of the memberships updated? yes
+      // is timestamp of the memberships updated? yes, but we should not sync based on that
+      // because other route handler (post message) will also update membership rows
       const result = await ChannelUserMembershipModel.updateMany(
         { channel_id: channelDoc?._id },
         { $set: { der_channelUpdatedAt: channelDoc?.updatedAt } },

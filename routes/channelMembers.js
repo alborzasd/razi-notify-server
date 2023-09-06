@@ -4,6 +4,7 @@ const {
   model: ChannelUserMembershipModel,
 } = require("../models/ChannelUserMembership");
 const { collectionName: userCollectionName } = require("../models/User");
+const { model: MessageModel } = require("../models/Message");
 
 const {
   // getChannel,
@@ -208,10 +209,22 @@ router.post("/", requireChannelOwnership, async (req, res) => {
         channelDoc?.owner_id.toString() !== id
     ); // string array
 
+    // get the last message of the channel
+    // to assign to each membership row
+    const lastMessage = (await MessageModel.find({ channel_id: channelDoc?._id })
+      .sort({ createdAt: -1 })
+      .limit(1).lean())?.[0]; // (await find lean) returns array
+
     // map to membership objects to pass to the membership model
     const newMemberShips = newJoinedUserIds.map((userId) => ({
       channel_id: channelDoc?._id, // objectId
       user_id: mongoose.Types.ObjectId(userId), // objectId
+      // initializing derived fields
+      der_channelUpdatedAt: channelDoc?.updatedAt,
+      der_lastMessage: lastMessage || null,
+      der_lastMessageRead: lastMessage || null,
+      der_numUnreadMessages: 0,
+      der_messageCollectionUpdatedAt: null,
     }));
 
     // add to ChannelUserMembership collection

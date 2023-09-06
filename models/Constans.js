@@ -113,6 +113,16 @@ const phoneNumberErrorMessageCallback = (invalidPhone) =>
 
 /////////////////////////////////////////////////////////////
 
+/**
+ * maybe later: model creators should use these constants as collection name
+ */
+const collectionNames = {
+  Departments: "Departmnets",
+  Channels: "Channels",
+};
+
+/////////////////////////////////////////////////////////////
+
 module.exports = {
   systemRoleEnum,
   systemRoleValues,
@@ -133,4 +143,6 @@ module.exports = {
 
   identifierNamingErrorMessage,
   phoneNumberErrorMessageCallback,
+
+  collectionNames,
 };

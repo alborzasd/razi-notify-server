@@ -1,7 +1,10 @@
+const initServer = require("./init-server/init-server");
+
 const http = require("http");
 const express = require("express");
 const { Server: SocketServer } = require("socket.io");
 const chalk = require("chalk");
+const path = require("path");
 
 const mongoose = require("mongoose");
 const { connect } = require("./mongoose-connection");
@@ -18,6 +21,8 @@ const { requireRole } = require("./middlewares/roleMiddlewares");
 const { getChannel } = require("./middlewares/channelMiddlewares");
 const { systemRoleEnum } = require("./models/Constans");
 
+const { handleErrors } = require("./routes/utilities");
+
 const app = express();
 // const port = process.env.PORT;
 const server = http.createServer(app);
@@ -27,6 +32,10 @@ const io = new SocketServer(server, {
     methods: ["HEAD", "GET", "POST", "PUT", "PATCH", "DELTE"],
   },
 });
+
+// for now,
+// create static directories that does not exist
+initServer();
 
 // middlewares
 // app.use((req, res, next) => {
@@ -49,6 +58,8 @@ app.use(
 //     origin: '*'
 // }));
 
+app.use("/static", express.static(path.join(__dirname, "static")));
+
 // router
 app.use("/auth", require("./routes/auth"));
 app.use(
@@ -64,20 +75,20 @@ app.use(
   require("./routes/channels")
 );
 app.use(
-    "/channels/:channelId/messages",
-    requireAuth,
-    requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-    // finds channel with req.params.channelId, assigns it to req.channel
-    getChannel,
-    require("./routes/channelMessages")
+  "/channels/:channelId/messages",
+  requireAuth,
+  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
+  // finds channel with req.params.channelId, assigns it to req.channel
+  getChannel,
+  require("./routes/channelMessages")
 );
 app.use(
-    "/channels/:channelId/members",
-    requireAuth,
-    requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-    // finds channel with req.params.channelId, assigns it to req.channel
-    getChannel,
-    require("./routes/channelMembers")
+  "/channels/:channelId/members",
+  requireAuth,
+  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
+  // finds channel with req.params.channelId, assigns it to req.channel
+  getChannel,
+  require("./routes/channelMembers")
 );
 app.use(
   "/departments",
@@ -97,9 +108,16 @@ app.use((req, res) => {
   res.status(404).json({ error: { message: "Invalid Route" } });
 });
 
+// The “catch-all” errorHandler
+// now it catches multer middleware errors (cb(Error))
+app.use((err, req, res, next) => {
+  const { status, errorData } = handleErrors(err);
+  return res.status(status).json({ error: errorData });
+});
+
 // TODO: open socket connection only if user authenticated
 // socket
-registerSocketHandler(io);
+// registerSocketHandler(io);
 
 // connect to db then start listening
 connect().then(

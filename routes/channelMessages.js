@@ -1,5 +1,8 @@
 const express = require("express");
-const { model: ChannelModel } = require("../models/Channel");
+const mongoose = require("mongoose");
+const {
+  model: ChannelUserMembershipModel,
+} = require("../models/ChannelUserMembership");
 const { model: UserModel } = require("../models/User");
 const { model: MessageModel } = require("../models/Message");
 
@@ -112,7 +115,11 @@ router.get("/:messageId", getMessage, async (req, res) => {
 });
 
 router.post("/", requireChannelOwnership, async (req, res) => {
+  let session;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+
     const channelDoc = req?.channel;
 
     const messageBeforeSave = new MessageModel();
@@ -141,12 +148,30 @@ router.post("/", requireChannelOwnership, async (req, res) => {
       await sendSmsToPhoneNumberList(phoneNumberList, messageText);
     }
 
-    const messageDoc = await messageBeforeSave.save();
+    const messageDoc = await messageBeforeSave.save({ session });
+
+    const result = await ChannelUserMembershipModel.updateMany(
+      { channel_id: channelDoc?._id },
+      {
+        $set: {
+          der_lastMessage: messageDoc,
+          der_messageCollectionUpdatedAt: new Date(),
+        },
+        $inc: { der_numUnreadMessages: 1 },
+      },
+      { session }
+    );
+
+    await session.commitTransaction();
 
     return res.status(201).json({ data: messageDoc });
   } catch (err) {
+    await session.abortTransaction();
+
     const { status, errorData } = handleErrors(err);
     return res.status(status).json({ error: errorData });
+  } finally {
+    await session.endSession();
   }
 });
 
@@ -155,7 +180,11 @@ router.patch(
   getMessage,
   requireChannelOwnership,
   async (req, res) => {
+    let session;
     try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
       const messageDoc = req?.messageDoc;
       const channelDoc = req?.channel;
       const allowedFields = MessageModel.getOnBindAllowedFields("update");
@@ -181,11 +210,55 @@ router.patch(
         await sendSmsToPhoneNumberList(phoneNumberList, messageText);
       }
 
-      await messageDoc.save();
+      await messageDoc.save({ session });
+
+      // get the last message of the channel (may be same as messageDoc or not)
+      // to assign to each membership row
+      const lastMessage = (
+        await MessageModel.find({ channel_id: channelDoc?._id })
+          .session(session)
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .lean()
+      )?.[0]; // (await find lean) returns array
+
+      // notify members that a message is updated
+      const result = await ChannelUserMembershipModel.updateMany(
+        { channel_id: channelDoc?._id },
+        {
+          $set: {
+            der_messageCollectionUpdatedAt: messageDoc?.updatedAt,
+            der_lastMessage: lastMessage,
+          },
+        },
+        { session }
+      );
+
+      // find the membership rows
+      // that the _id of lastMessageRead is equal to
+      // current modified messageDoc
+      // and assign the modified message to lastMessageRead
+      // TODO: test
+      const result2 = await ChannelUserMembershipModel.updateMany(
+        { channel_id: channelDoc?._id, "der_lastMessageRead._id": messageDoc?._id },
+        {
+          $set: {
+            der_lastMessageRead: messageDoc,
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+
       res.json({ data: { message: "Message edited successfully" } });
     } catch (err) {
+      await session.abortTransaction();
+
       const { status, errorData } = handleErrors(err);
       return res.status(status).json({ error: errorData });
+    } finally {
+      await session.endSession();
     }
   }
 );
@@ -195,15 +268,116 @@ router.delete(
   getMessage,
   requireChannelOwnership,
   async (req, res) => {
+    let session;
     try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
       const messageDoc = req?.messageDoc;
-      await MessageModel.deleteOne({_id: messageDoc?._id});
+      const channelDoc = req?.channel;
+      const deletedMessageCreatedAt = messageDoc?.createdAt;
+
+      await MessageModel.deleteOne({ _id: messageDoc?._id }, { session });
       // deprecated ?
       // await messageDoc.remove();
-      res.json({data: {message: 'Message removed successfully'}});
-    } catch(err) {
-      const {status, errorData} = handleErrors(err);
-      return res.status(status).json({error: errorData});
+
+      // get the last message of the channel (the messageDoc might be last message or not)
+      // to assign to each membership row
+      const lastMessage = (
+        await MessageModel.find({ channel_id: channelDoc?._id })
+          .session(session)
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .lean()
+      )?.[0]; // (await find lean) returns array
+
+      // notify all members that a message deleted
+      const result1 = await ChannelUserMembershipModel.updateMany(
+        { channel_id: channelDoc?._id },
+        {
+          $set: {
+            der_lastMessage: lastMessage || null,
+            der_messageCollectionUpdatedAt: new Date(),
+          },
+        },
+        { session }
+      );
+
+      // for each member
+      // decrement numUnreadMessages
+      // if deleted message was created after lastMessageRead
+      // or if lastMessageRead does not exist (is null)
+      // the last condition happens when a user joins to a channel that has no message
+      // and never navigated to that channel
+      const result2 = await ChannelUserMembershipModel.updateMany(
+        {
+          channel_id: channelDoc?._id,
+          $or: [
+            {
+              "der_lastMessageRead.createdAt": {
+                $lt: deletedMessageCreatedAt,
+              },
+            },
+            {
+              der_lastMessageRead: null,
+            },
+          ],
+        },
+        {
+          $inc: { der_numUnreadMessages: -1 },
+        },
+        { session }
+      );
+      // why we trigger 2 update queries on the same collection ?
+      // because mongodb does not support conditional update fields (use $cond in $set)
+
+      // one message before the deleted message
+      // TODO: test
+      const messageBeforeDeleted = (
+        await MessageModel.find({
+          channel_id: channelDoc?._id,
+          _id: { $lt: messageDoc?._id },
+        })
+          .session(session)
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .lean()
+      )?.[0]; // (await find lean) returns array
+
+      // find membership rows
+      // the the _id of lastMessageRead
+      // is equal to _id of deleted message
+      // and assign the message before the deleted message
+      // to lastMessageRead
+      // this operation should be done
+      // after updating numUnreadMessages
+      //
+      // otherwise the num will decrease if the deleted message
+      // is same as the lastMessageRead (but we know it's read and should not be counted)
+      // TODO: test
+      const result3 = await ChannelUserMembershipModel.updateMany(
+        {
+          channel_id: channelDoc?._id,
+          "der_lastMessageRead._id": messageDoc?._id,
+        },
+        {
+          $set: {
+            der_lastMessageRead: messageBeforeDeleted || null,
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+
+      res.json({ data: { message: "Message removed successfully" } });
+    } catch (err) {
+      await session.abortTransaction();
+
+      const { status, errorData } = handleErrors(err);
+      return res.status(status).json({ error: errorData });
+    } finally {
+      await session.endSession();
     }
   }
 );
