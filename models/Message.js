@@ -33,10 +33,21 @@ const messageSchema = new mongoose.Schema(
       ref: userCollectionName,
     },
 
+
+    // derived fields
+
     // message body contains json output of the editor
     // this field stores a substring of the raw output
     // from that json
+    // TODO: add 'der_' prefix
     bodyRawPreview: {
+      type: String,
+
+      __onCreateBindAllowed: true,
+      __onUpdateBindAllowed: true,
+    },
+    
+    der_bodyRaw: {
       type: String,
 
       __onCreateBindAllowed: true,

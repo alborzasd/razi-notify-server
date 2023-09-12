@@ -144,7 +144,7 @@ router.post("/", requireChannelOwnership, async (req, res) => {
         "\n\n" +
         req?.body?.title +
         "\n" +
-        req?.body?.bodyRaw;
+        req?.body?.der_bodyRaw;
       await sendSmsToPhoneNumberList(phoneNumberList, messageText);
     }
 
@@ -206,7 +206,7 @@ router.patch(
           req?.body?.title +
           " [ویرایش]" +
           "\n" +
-          req?.body?.bodyRaw;
+          req?.body?.der_bodyRaw;
         await sendSmsToPhoneNumberList(phoneNumberList, messageText);
       }
 

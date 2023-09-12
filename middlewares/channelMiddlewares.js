@@ -1,6 +1,9 @@
 // const mongoose = reuqire("mongoose");
 const { systemRoleEnum } = require("../models/Constans");
 const { model: ChannelModel } = require("../models/Channel");
+const {
+  model: ChannelUserMembershipModel,
+} = require("../models/ChannelUserMembership");
 const { isValidObjectId } = require("../routes/utilities");
 
 // finds channel by _id
@@ -57,7 +60,7 @@ const requireChannelOwnership = (req, res, next) => {
 
   if (userRole !== systemRoleEnum.root_admin) {
     if (userId !== channelOwnerId) {
-      return res.status(500).json({
+      return res.status(403).json({
         error: {
           message: "Forbidden, you are not the owner of this channel",
           messagePersian: "عملیات غیر مجاز. این کانال متعلق به شما نیست",
@@ -71,7 +74,46 @@ const requireChannelOwnership = (req, res, next) => {
   return next();
 };
 
+// when a client calls api to get messages of a specific channel
+// he must be member of that channel
+// if successful, assigns membership row to req.membershipDoc
+async function requireChannelMembership(req, res, next) {
+  try {
+    const channelDoc = req?.channel;
+    const userDoc = req?.auth?.user;
+
+    if (!channelDoc || !userDoc) {
+      return res.status(500).json({
+        error: {
+          message: "Lack of necessary information to verify membership",
+          messagePersian: "کمبود اطلاعات لازم برای احراز عضویت کانال",
+        },
+      });
+    }
+
+    const membershipDoc = await ChannelUserMembershipModel.findOne({
+      user_id: userDoc?._id,
+      channel_id: channelDoc?._id,
+    });
+
+    if (!membershipDoc) {
+      return res.status(403).json({
+        error: {
+          message: "Forbidden, you are not member of this channel",
+          messagePersian: "عملیات غیر مجاز. شما عضو این کانال نیستید.",
+        },
+      });
+    }
+
+    req.membershipDoc = membershipDoc;
+    return next();
+  } catch (err) {
+    return res.status(500).json({ error: { message: err.message } });
+  }
+}
+
 module.exports = {
   getChannel,
   requireChannelOwnership,
+  requireChannelMembership,
 };
