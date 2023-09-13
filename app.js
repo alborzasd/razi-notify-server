@@ -16,11 +16,7 @@ const registerSocketHandler = require("./socket_handler/handler");
 // require('dotenv').config();
 const { allowedOrigins, port } = require("./config");
 
-const { requireAuth } = require("./middlewares/authMiddleware");
-const { requireRole } = require("./middlewares/roleMiddlewares");
-const { getChannel } = require("./middlewares/channelMiddlewares");
-const { systemRoleEnum } = require("./models/Constans");
-
+const apiRouter = require("./routes/api");
 const { handleErrors } = require("./routes/utilities");
 
 const app = express();
@@ -60,48 +56,13 @@ app.use(
 
 app.use("/static", express.static(path.join(__dirname, "static")));
 
-// router
-app.use("/auth", require("./routes/auth"));
-app.use(
-  "/users",
-  requireAuth,
-  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-  require("./routes/users")
-);
-app.use(
-  "/channels",
-  requireAuth,
-  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-  require("./routes/channels")
-);
-app.use(
-  "/channels/:channelId/messages",
-  requireAuth,
-  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-  // finds channel with req.params.channelId, assigns it to req.channel
-  getChannel,
-  require("./routes/channelMessages")
-);
-app.use(
-  "/channels/:channelId/members",
-  requireAuth,
-  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-  // finds channel with req.params.channelId, assigns it to req.channel
-  getChannel,
-  require("./routes/channelMembers")
-);
-app.use(
-  "/departments",
-  requireAuth,
-  requireRole([systemRoleEnum.root_admin, systemRoleEnum.channel_admin]),
-  require("./routes/departments")
-);
-app.use("/sync", requireAuth, require("./routes/sync"));
-app.use("/constants", require("./routes/constants"));
-
+// not necessary, just a welcome route
 app.get("/", (req, res) => {
   res.json({ message: "Razi Notify Api" });
 });
+
+// api routes
+app.use("/api", apiRouter);
 
 // handle 404
 app.use((req, res) => {
