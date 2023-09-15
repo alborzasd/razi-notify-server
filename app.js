@@ -54,7 +54,7 @@ app.use(
 //     origin: '*'
 // }));
 
-app.use("/static", express.static(path.join(__dirname, "static")));
+app.use("/api/static", express.static(path.join(__dirname, "static")));
 
 // not necessary, just a welcome route
 app.get("/", (req, res) => {
